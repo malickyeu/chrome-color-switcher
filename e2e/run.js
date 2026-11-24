@@ -100,11 +100,14 @@ async function main() {
     'about:blank',
   ], { stdio: 'ignore' });
 
-  const cleanup = () => {
+  // Chrome keeps writing to the profile while shutting down, so wait for it before removing the profile.
+  const exited = new Promise((resolve) => chrome.once('exit', resolve));
+  const cleanup = async () => {
     chrome.kill();
+    await Promise.race([exited, sleep(5000)]);
     siteServer.close();
     crossServer.close();
-    fs.rmSync(profile, { recursive: true, force: true });
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   };
 
   try {
@@ -377,7 +380,7 @@ async function main() {
     console.log(`\n${results.length - failed}/${results.length} passed${SHOTS ? `, screenshots in ${SHOTS}` : ''}`);
     process.exitCode = failed ? 1 : 0;
   } finally {
-    cleanup();
+    await cleanup();
   }
 }
 
