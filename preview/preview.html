@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Color Switcher – náhled</title>
+  <link rel="stylesheet" href="../ui/controls.css">
+  <link rel="stylesheet" href="preview.css">
+</head>
+<body>
+  <aside class="side">
+    <header>
+      <h1>Náhled schématu</h1>
+      <label class="target">
+        <span class="label">Upravuji</span>
+        <select id="target"></select>
+      </label>
+      <div class="row" id="enabledRow" hidden>
+        <label for="enabled">Zapnuto na webu</label>
+        <label class="switch"><input type="checkbox" id="enabled"><span class="slider"></span></label>
+      </div>
+    </header>
+    <div id="controls"></div>
+    <p class="muted note">Změny se ukládají hned a projeví se i na otevřených stránkách.</p>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <div class="row">
+        <span>Ukázkový web</span>
+        <div class="seg" id="theme">
+          <button data-value="light" class="active">Světlý</button>
+          <button data-value="dark">Tmavý</button>
+        </div>
+      </div>
+      <div class="row">
+        <span>Zobrazení</span>
+        <div class="seg" id="layout">
+          <button data-value="split" class="active">Vedle sebe</button>
+          <button data-value="single">Jen náhled</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panes" id="panes">
+      <figure id="origPane">
+        <figcaption>Původní</figcaption>
+        <iframe id="orig" src="sample.html" title="Původní ukázkový web"></iframe>
+      </figure>
+      <figure>
+        <figcaption>Náhled</figcaption>
+        <iframe id="prev" src="sample.html" title="Ukázkový web po přebarvení"></iframe>
+      </figure>
+    </div>
+
+    <section class="palettes">
+      <div>
+        <h2>Paleta schématu</h2>
+        <div class="pal-row"><span>Základ</span><div id="schemeBase" class="pairs"></div></div>
+        <div class="pal-row"><span>Pozadí</span><div id="typBg" class="pairs"></div></div>
+        <div class="pal-row"><span>Text</span><div id="typText" class="pairs"></div></div>
+      </div>
+      <div id="siteBox" hidden>
+        <h2 id="siteTitle">Barvy webu</h2>
+        <p id="siteNote" class="muted"></p>
+        <div class="pal-row"><span>Pozadí</span><div id="siteBg" class="pairs"></div></div>
+        <div class="pal-row"><span>Text</span><div id="siteText" class="pairs"></div></div>
+        <div class="pal-row"><span>Akcenty</span><div id="siteAccent" class="pairs"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <span id="toast" class="toast" aria-live="polite"></span>
+  <script src="../src/color.js"></script>
+  <script src="../src/scheme.js"></script>
+  <script src="../src/settings.js"></script>
+  <script src="../ui/controls.js"></script>
+  <script src="preview.js"></script>
+</body>
+</html>

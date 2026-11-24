@@ -132,10 +132,10 @@ async function main() {
     };
     const css = (sel, prop) => cdp.eval(page, `getComputedStyle(document.querySelector(${JSON.stringify(sel)})).${prop}`);
     const L = async (sel, prop) => C.rgbToOklch(C.parseColor(await css(sel, prop))).l;
-    const shot = async (name) => {
+    const shot = async (name, session = page) => {
       if (!SHOTS) return;
       fs.mkdirSync(SHOTS, { recursive: true });
-      const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, page);
+      const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, session);
       fs.writeFileSync(path.join(SHOTS, `${name}.png`), Buffer.from(data, 'base64'));
     };
     const results = [];
@@ -208,6 +208,35 @@ async function main() {
       assert.match(await css('html', 'filter'), /invert\(1\)/);
       assert.equal(await cdp.eval(page, 'document.querySelectorAll("style[data-ccs]").length'), 1);
       assert.equal(await cdp.eval(page, 'document.getElementById("inline").getAttribute("style")'), 'color: #000; background-color: #fafafa');
+    });
+
+    await check('preview page renders the scheme next to the original', async () => {
+      const extId = new URL(sw.url).host;
+      const tabs = await cdp.eval(swSession, `chrome.tabs.query({}).then((t) => t.map((x) => ({ id: x.id, url: x.url })))`);
+      const siteTab = tabs.find((t) => t.url && t.url.startsWith(siteUrl));
+      const prevTarget = await cdp.send('Target.createTarget', {
+        url: `chrome-extension://${extId}/preview/preview.html?tab=${siteTab.id}&host=127.0.0.1`,
+      });
+      const pv = (await cdp.send('Target.attachToTarget', { targetId: prevTarget.targetId, flatten: true })).sessionId;
+      await sleep(1500);
+      const frameBg = (id) => cdp.eval(pv, `getComputedStyle(document.getElementById('${id}').contentDocument.body).backgroundColor`);
+      const lum = async (id) => C.rgbToOklch(C.parseColor(await frameBg(id))).l;
+      // site is in filter mode now; the preview of "filter" inverts with a CSS filter, so switch to dark
+      await cdp.eval(pv, `document.querySelector('#modes [data-mode="dark"]').click()`);
+      await sleep(500);
+      assert.ok((await lum('orig')) > 0.95, 'original stays light');
+      assert.ok((await lum('prev')) < 0.3, 'preview is dark');
+      assert.equal(await cdp.eval(pv, `document.querySelectorAll('#siteBg .pair').length > 0`), true, 'site palette loaded');
+      const saved = await cdp.eval(swSession, `chrome.storage.local.get('sites').then((s) => s.sites['127.0.0.1'].mode)`);
+      assert.equal(saved, 'dark', 'preview saves the site settings');
+      await cdp.eval(pv, `document.querySelector('#theme [data-value="dark"]').click(); document.querySelector('#modes [data-mode="flip"]').click()`);
+      await sleep(500);
+      assert.ok((await lum('orig')) < 0.2, 'dark sample original');
+      assert.ok((await lum('prev')) > 0.85, 'flip turns the dark sample light');
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1000, deviceScaleFactor: 1, mobile: false }, pv);
+      await sleep(300);
+      await shot('4-preview', pv);
+      await cdp.send('Target.closeTarget', { targetId: prevTarget.targetId });
     });
 
     await setSite({ enabled: true, mode: 'dark' });

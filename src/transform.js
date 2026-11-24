@@ -21,8 +21,11 @@
   ];
 
   /** Role of the colors used in a property, 'var' for custom properties, null if not color-bearing. */
+  const NON_COLOR_SUFFIX = /-(width|radius|style|size|position(-[xy])?|repeat|attachment|origin|clip|blend-mode|offset|collapse|spacing|outset|slice)$/;
+
   function roleForProperty(prop) {
     if (prop.startsWith('--')) return 'var';
+    if (NON_COLOR_SUFFIX.test(prop)) return null;
     if (TEXT_PROPS.has(prop) || prop === 'text-decoration') return 'text';
     if (prop.startsWith('background')) return 'bg';
     if (prop.startsWith('border') || prop.startsWith('outline') || prop.startsWith('column-rule')) return 'border';
@@ -97,6 +100,42 @@
   }
 
   const VAR_REF_RE = /var\(\s*(--[\w-]+)/g;
+  const ROLES = ['bg', 'text', 'border', 'shadow'];
+
+  /** Name of the per-role variant of a custom property, e.g. --ccs-bg--primary. */
+  const variantName = (role, name) => `--ccs-${role}${name}`;
+
+  /**
+   * One custom property is often used both as a background and as a text color. Usages are
+   * pointed at a per-role variant, falling back to the original property:
+   *   var(--x, fb)  ->  var(--ccs-bg--x, var(--x, fb))
+   */
+  function rewriteVarRefs(value, role) {
+    let out = '';
+    let i = 0;
+    for (;;) {
+      const k = value.indexOf('var(', i);
+      if (k < 0) return out + value.slice(i);
+      out += value.slice(i, k);
+      let depth = 0;
+      let j = k + 3;
+      for (; j < value.length; j++) {
+        if (value[j] === '(') depth++;
+        else if (value[j] === ')' && --depth === 0) break;
+      }
+      if (j >= value.length) return out + value.slice(k);
+      const inner = value.slice(k + 4, j);
+      const comma = inner.indexOf(',');
+      const name = (comma < 0 ? inner : inner.slice(0, comma)).trim();
+      if (/^--[\w-]+$/.test(name) && !name.startsWith('--ccs-')) {
+        const fallback = comma < 0 ? '' : `,${rewriteVarRefs(inner.slice(comma + 1), role)}`;
+        out += `var(${variantName(role, name)}, var(${name}${fallback}))`;
+      } else {
+        out += value.slice(k, j + 1);
+      }
+      i = j + 1;
+    }
+  }
 
   const NAME_HINTS = [
     ['shadow', /shadow/i],
@@ -169,7 +208,7 @@
     }
 
     const cache = new Map();
-    return (name) => {
+    const resolve = (name) => {
       if (cache.has(name)) return cache.get(name);
       let role = null;
       const c = counts.get(name);
@@ -184,6 +223,9 @@
       cache.set(name, role);
       return role;
     };
+    /** Roles a custom property is used in (directly or through aliases). */
+    resolve.rolesOf = (name) => Object.keys(counts.get(name) || {}).filter((r) => ROLES.includes(r));
+    return resolve;
   }
 
   /**
@@ -196,10 +238,21 @@
     let changed = false;
     const handle = (prop, value) => {
       const role = roleForProperty(prop);
-      let out = value;
-      if (role === 'var') out = transformCustomProperty(value, ctx.varRole(prop), ctx.scheme);
-      else if (role) out = transformValue(value, role, ctx.scheme);
       const priority = style.getPropertyPriority(prop);
+      let out = value;
+      if (role === 'var') {
+        out = transformCustomProperty(value, ctx.varRole(prop), ctx.scheme);
+        // Variants must be defined wherever the property is, so inheritance keeps working.
+        const roles = ctx.varRole.rolesOf ? ctx.varRole.rolesOf(prop) : [];
+        for (const r of roles) {
+          const v = rewriteVarRefs(transformCustomProperty(value, r, ctx.scheme), r);
+          entries.push({ prop: variantName(r, prop), value: absolutizeUrls(v, ctx.baseUrl), priority });
+          changed = true;
+        }
+      } else if (role) {
+        out = transformValue(value, role, ctx.scheme);
+        if (out.includes('var(')) out = rewriteVarRefs(out, role);
+      }
       if (out !== value) {
         out = absolutizeUrls(out, ctx.baseUrl);
         changed = true;
@@ -298,10 +351,33 @@
     return '';
   }
 
+  /**
+   * Override CSS for whole stylesheets.
+   * @param {Array<{rules, media?, href?}>} lists stylesheets in document order
+   * @param {object} opts {baseUrl?, onImport?(href, ctx) => css}
+   * @returns {{css: string, ctx: object}} ctx can be reused for inline styles
+   */
+  function buildOverrideCss(lists, scheme, opts = {}) {
+    const ctx = {
+      scheme,
+      varRole: createVarRoleResolver(lists.map((l) => l.rules)),
+      baseUrl: opts.baseUrl || null,
+    };
+    if (opts.onImport) ctx.onImport = (href) => opts.onImport(href, ctx);
+    let css = '';
+    for (const l of lists) {
+      const part = transformRules(l.rules, { ...ctx, baseUrl: l.href || ctx.baseUrl });
+      css += part && l.media && l.media !== 'all' ? `@media ${l.media}{${part}}` : part;
+    }
+    return { css, ctx };
+  }
+
   const api = {
+    buildOverrideCss,
     roleForProperty,
     transformValue,
     transformCustomProperty,
+    rewriteVarRefs,
     findColors,
     absolutizeUrls,
     createVarRoleResolver,

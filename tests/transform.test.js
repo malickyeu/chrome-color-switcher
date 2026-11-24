@@ -94,7 +94,7 @@ test('transformRules resolves relative urls against the source stylesheet', () =
 test('shorthands containing var() are rewritten as a whole', () => {
   const rules = [rule('.card', [], { shorthands: { background: 'var(--x) #fff' } })];
   const css = T.transformRules(rules, ctx(rules));
-  assert.match(css, /^\.card\{background:var\(--x\) #[0-9a-f]{6};\}$/);
+  assert.match(css, /^\.card\{background:var\(--ccs-bg--x, var\(--x\)\) #[0-9a-f]{6};\}$/);
 });
 
 test('custom properties get the role of their usage', () => {
@@ -113,11 +113,61 @@ test('custom properties get the role of their usage', () => {
   const css = T.transformRules(rules, ctx(rules));
   const brand = css.match(/--brand:(#[0-9a-f]{6})/)[1];
   assert.ok(L(brand) < 0.3, 'white used as background becomes dark');
-  assert.ok(!css.includes('--ink'), 'white used as text already fits and is not overridden');
+  assert.ok(!/[{;]--ink:/.test(css), 'white used as text already fits and is not overridden');
+  assert.ok(css.includes('--ccs-text--ink:#ffffff'), 'but its text variant is defined');
+  assert.ok(css.includes('--ccs-text--alias:var(--ccs-text--deep, var(--deep))'), 'aliases point at variants');
 });
 
 test('broken rules do not abort the whole sheet', () => {
   const bad = { get selectorText() { throw new Error('boom'); } };
   const css = T.transformRules([bad, rule('p', [['color', '#000']])], ctx());
   assert.match(css, /^p\{color:#[0-9a-f]{6};\}$/);
+});
+
+test('buildOverrideCss wraps sheets by media, shares var roles across sheets and returns a reusable ctx', () => {
+  const vars = [rule(':root', [['--paper', '#ffffff']])];
+  const usage = [rule('.page', [['background-color', 'var(--paper)'], ['color', '#000']])];
+  const { css, ctx: c } = T.buildOverrideCss(
+    [{ rules: vars, media: 'all' }, { rules: usage, media: 'print', href: 'https://x.cz/p.css' }],
+    scheme,
+  );
+  assert.match(css, /^:root\{--ccs-bg--paper:#[0-9a-f]{6};--paper:#[0-9a-f]{6};\}@media print\{\.page\{background-color:var\(--ccs-bg--paper, var\(--paper\)\);color:#[0-9a-f]{6};\}\}$/);
+  assert.ok(L(css.match(/--paper:(#[0-9a-f]{6})/)[1]) < 0.3, 'role learned from the other sheet');
+  assert.equal(c.varRole('--paper'), 'bg');
+  assert.equal(c.scheme, scheme);
+});
+
+test('a variable used as background and as text gets a variant per role', () => {
+  // Regression: --primary was mapped once by majority role (text), so button backgrounds
+  // ended up as dark as their text.
+  const rules = [
+    rule(':root', [['--primary', '#ffffff']]),
+    rule('.btn', [['background-color', 'var(--primary)']]),
+    rule('a', [['color', 'var(--primary)']]),
+    rule('.logo', [['color', 'var(--primary)']]),
+    rule('.badge', [['color', 'var(--primary)']]),
+  ];
+  const css = T.transformRules(rules, ctx(rules));
+  const bg = css.match(/--ccs-bg--primary:(#[0-9a-f]{6})/)[1];
+  const text = css.match(/--ccs-text--primary:(#[0-9a-f]{6})/)[1];
+  assert.ok(L(bg) < 0.3, `background variant is dark (${bg})`);
+  assert.ok(L(text) > 0.85, `text variant stays light (${text})`);
+  assert.ok(css.includes('.btn{background-color:var(--ccs-bg--primary, var(--primary));}'));
+  assert.ok(css.includes('a{color:var(--ccs-text--primary, var(--primary));}'));
+});
+
+test('rewriteVarRefs handles fallbacks, nesting and non-variable functions', () => {
+  assert.equal(T.rewriteVarRefs('var(--a)', 'bg'), 'var(--ccs-bg--a, var(--a))');
+  assert.equal(
+    T.rewriteVarRefs('rgba(var(--rgb), .5) var(--a, var(--b, #fff))', 'text'),
+    'rgba(var(--ccs-text--rgb, var(--rgb)), .5) var(--ccs-text--a, var(--a, var(--ccs-text--b, var(--b, #fff))))',
+  );
+  assert.equal(T.rewriteVarRefs('var(--ccs-bg--a)', 'bg'), 'var(--ccs-bg--a)', 'own variants are not rewritten again');
+  assert.equal(T.rewriteVarRefs('calc(var(--x', 'bg'), 'calc(var(--x', 'unbalanced input is left alone');
+});
+
+test('size, width and radius properties are not treated as colors', () => {
+  for (const p of ['border-width', 'border-radius', 'background-size', 'outline-offset', 'border-top-left-radius']) {
+    assert.equal(T.roleForProperty(p), null, p);
+  }
 });

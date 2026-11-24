@@ -104,7 +104,7 @@
       ensureStyleEl();
       startWatching();
       if (want === 'filter') {
-        setCss(filterCss());
+        setCss(CCS.filterCss(settings));
       } else {
         refreshScheme();
         if (settings.mode === 'flip' && isTop) scheduleDetection();
@@ -148,33 +148,7 @@
     if (styleEl && styleEl.textContent !== css) styleEl.textContent = css;
   }
 
-  // ---------- filter mode ----------
-
-  function filterCss() {
-    const { contrast, brightness, dimImages } = settings;
-    const back = `invert(1) hue-rotate(180deg)${dimImages ? ' brightness(0.8)' : ''}`;
-    return [
-      `html{filter:invert(1) hue-rotate(180deg) contrast(${contrast}) brightness(${(1 + brightness).toFixed(2)}) !important;}`,
-      ':where(html){background-color:#fff;}',
-      `img,video,canvas,iframe,embed,object,svg image{filter:${back} !important;}`,
-      ':root{color-scheme:light !important;}',
-    ].join('\n');
-  }
-
   // ---------- smart mode ----------
-
-  const fmt = (hex, role) => CCS.formatColor(CCS.transformColor(CCS.parseColor(hex), role, scheme));
-
-  function baseCss() {
-    let css =
-      `:root{color-scheme:${scheme.target};}` +
-      `html{background-color:${scheme.bg};color:${scheme.text};}` +
-      `:where(a:link){color:${fmt('#0000ee', 'text')};}` +
-      `:where(a:visited){color:${fmt('#551a8b', 'text')};}` +
-      `:where(mark){background-color:${fmt('#ffff00', 'bg')};color:${fmt('#000000', 'text')};}`;
-    if (settings.dimImages) css += 'img,video,svg image{filter:brightness(0.8) contrast(1.1);}';
-    return css;
-  }
 
   /** Legacy presentational attributes: bgcolor="", <font color="">, <body text="">. */
   function attributeCss() {
@@ -262,26 +236,18 @@
   function rebuild(withSheets) {
     if (applied !== 'smart' || !scheme) return;
     if (withSheets || !ctx) {
-      const lists = collectSheets();
-      const varRole = CCS.createVarRoleResolver(lists.map((l) => l.rules));
-      ctx = {
-        scheme,
-        varRole,
+      const built = CCS.buildOverrideCss(collectSheets(), scheme, {
         baseUrl: document.baseURI,
-        onImport: (href) => {
+        onImport: (href, c) => {
           const rules = fetchedRules(href);
-          return rules ? CCS.transformRules(rules, { ...ctx, baseUrl: href }) : '';
+          return rules ? CCS.transformRules(rules, { ...c, baseUrl: href }) : '';
         },
-      };
-      let css = '';
-      for (const l of lists) {
-        const part = CCS.transformRules(l.rules, { ...ctx, baseUrl: l.href || document.baseURI });
-        css += part && l.media && l.media !== 'all' ? `@media ${l.media}{${part}}` : part;
-      }
-      sheetsCss = css;
+      });
+      ctx = built.ctx;
+      sheetsCss = built.css;
       lastSignature = signature();
     }
-    setCss(baseCss() + sheetsCss + attributeCss());
+    setCss(CCS.pageBaseCss(scheme, settings) + sheetsCss + attributeCss());
     keepStyleLast();
     document.querySelectorAll('[style]').forEach(processInline);
   }

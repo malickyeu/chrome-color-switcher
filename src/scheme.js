@@ -131,7 +131,9 @@
   function transformColor(color, role, scheme) {
     if (color.a === 0) return color;
     const o = C.rgbToOklch(color);
-    const r = role === 'auto' ? resolveAutoRole(o.l, scheme) : role;
+    let r = role === 'auto' ? resolveAutoRole(o.l, scheme) : role;
+    // Colored shadows are usually focus rings or glows, not depth; darkening them would hide them.
+    if (r === 'shadow' && o.c >= NEUTRAL_CHROMA) r = 'border';
     let L = mapLightness(o.l, r, scheme);
     let c = o.c;
     let h = o.h;
@@ -154,7 +156,43 @@
     return C.oklchToRgb({ l: L, c, h, a: color.a });
   }
 
-  const api = { PRESETS, NEUTRAL_CHROMA, buildScheme, transformColor, mapLightness };
+  const remap = (hex, role, scheme) => C.formatColor(transformColor(C.parseColor(hex), role, scheme));
+
+  /** Page-wide defaults for smart modes: canvas, text, UA link colors, optional image dimming. */
+  function pageBaseCss(scheme, settings) {
+    let css =
+      `:root{color-scheme:${scheme.target};}` +
+      `html{background-color:${scheme.bg};color:${scheme.text};}` +
+      `:where(a:link){color:${remap('#0000ee', 'text', scheme)};}` +
+      `:where(a:visited){color:${remap('#551a8b', 'text', scheme)};}` +
+      `:where(mark){background-color:${remap('#ffff00', 'bg', scheme)};color:${remap('#000000', 'text', scheme)};}`;
+    if (settings.dimImages) css += 'img,video,svg image{filter:brightness(0.8) contrast(1.1);}';
+    return css;
+  }
+
+  /** The "filter" mode: invert the whole page, then invert media back. */
+  function filterCss(settings) {
+    const { contrast, brightness, dimImages } = settings;
+    const back = `invert(1) hue-rotate(180deg)${dimImages ? ' brightness(0.8)' : ''}`;
+    return [
+      `html{filter:invert(1) hue-rotate(180deg) contrast(${contrast}) brightness(${(1 + brightness).toFixed(2)}) !important;}`,
+      ':where(html){background-color:#fff;}',
+      `img,video,canvas,iframe,embed,object,svg image{filter:${back} !important;}`,
+      ':root{color-scheme:light !important;}',
+    ].join('\n');
+  }
+
+  /** Pairs {from, to} of hex colors for showing how a palette gets remapped; invalid input is skipped. */
+  function remapPalette(hexes, role, scheme) {
+    const out = [];
+    for (const from of hexes) {
+      const c = C.parseColor(from);
+      if (c) out.push({ from: C.toHex(c), to: C.toHex(transformColor({ ...c, a: 1 }, role, scheme)) });
+    }
+    return out;
+  }
+
+  const api = { PRESETS, NEUTRAL_CHROMA, buildScheme, transformColor, mapLightness, pageBaseCss, filterCss, remapPalette };
 
   if (isNode) module.exports = api;
   else root.CCS = Object.assign(root.CCS || {}, api);

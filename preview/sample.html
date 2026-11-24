@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <title>Ukázkový web</title>
+  <link rel="stylesheet" href="sample.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="brand"><span class="logo">◐</span> Zpravodaj</div>
+    <nav><a href="#">Domů</a><a href="#">Články</a><a href="#">Obchod</a><a href="#" class="btn btn-primary small">Přihlásit</a></nav>
+  </header>
+
+  <section class="hero">
+    <h1>Web, který tmavý režim nemá</h1>
+    <p>Takhle bude vypadat po přebarvení. Nadpisy, odstavce, karty, tlačítka, formuláře i tabulky.</p>
+    <div class="hero-actions">
+      <a href="#" class="btn btn-primary">Hlavní akce</a>
+      <a href="#" class="btn btn-ghost">Vedlejší akce</a>
+    </div>
+  </section>
+
+  <main class="grid">
+    <article class="card">
+      <div class="photo" role="img" aria-label="Ilustrační fotka"></div>
+      <span class="badge">Novinka</span>
+      <h2>Karta s obrázkem</h2>
+      <p>Běžný text odstavce s <a href="#">odkazem</a> a <mark>zvýrazněním</mark>. <span class="muted">Šedý doplňující text.</span></p>
+    </article>
+
+    <article class="card">
+      <h2>Upozornění</h2>
+      <div class="alert ok">Uloženo, všechno je v pořádku.</div>
+      <div class="alert warn">Pozor, blíží se termín.</div>
+      <div class="alert err">Něco se pokazilo.</div>
+      <p style="color:#555; background-color:#fff8e1; padding:6px 8px; border-radius:6px">Odstavec s inline stylem.</p>
+    </article>
+
+    <article class="card">
+      <h2>Formulář</h2>
+      <label>E-mail <input type="email" placeholder="jmeno@example.com"></label>
+      <label>Zpráva <textarea rows="2">Ahoj!</textarea></label>
+      <label class="check"><input type="checkbox" checked> Odebírat novinky</label>
+      <button class="btn btn-primary">Odeslat</button>
+      <button class="btn btn-danger">Smazat</button>
+    </article>
+
+    <article class="card wide">
+      <h2>Tabulka a kód</h2>
+      <table>
+        <thead><tr><th>Produkt</th><th>Stav</th><th>Cena</th></tr></thead>
+        <tbody>
+          <tr><td>Hrnek</td><td><span class="tag ok">skladem</span></td><td>199 Kč</td></tr>
+          <tr><td>Tričko</td><td><span class="tag warn">poslední kusy</span></td><td>449 Kč</td></tr>
+          <tr><td>Mikina</td><td><span class="tag err">vyprodáno</span></td><td>899 Kč</td></tr>
+        </tbody>
+      </table>
+      <pre><code><span class="kw">const</span> theme = <span class="str">'dark'</span>; <span class="cm">// komentář</span></code></pre>
+      <blockquote>Citace s barevným okrajem vlevo.</blockquote>
+    </article>
+  </main>
+
+  <footer class="foot">© 2026 Zpravodaj · <a href="#">Kontakt</a></footer>
+  <script src="../src/color.js"></script>
+  <script src="../src/scheme.js"></script>
+  <script src="../src/settings.js"></script>
+  <script src="../src/transform.js"></script>
+  <script src="sample.js"></script>
+</body>
+</html>

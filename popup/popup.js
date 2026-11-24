@@ -28,38 +28,16 @@ async function load() {
 
 function render() {
   $('enabled').checked = state.enabled;
-  document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('active', b.dataset.mode === state.mode));
-  document.querySelectorAll('#monoTarget button').forEach((b) => b.classList.toggle('active', b.dataset.value === state.monoTarget));
-  $('mono-opts').hidden = state.mode !== 'mono';
-  $('target-opts').hidden = state.mode !== 'mono' && state.mode !== 'gray';
-  $('custom-opts').hidden = state.mode !== 'custom';
-  $('monoColor').value = state.monoColor;
-  $('customBg').value = state.custom.bg;
-  $('customText').value = state.custom.text;
-  $('customAccent').value = state.custom.accent;
-  $('contrast').value = state.contrast;
-  $('brightness').value = state.brightness;
-  $('contrastOut').textContent = `${Math.round(state.contrast * 100)} %`;
-  $('brightnessOut').textContent = `${state.brightness > 0 ? '+' : ''}${Math.round(state.brightness * 100)}`;
-  $('dimImages').checked = state.dimImages;
+  CCSControls.render(state);
 }
 
 /** Persists the current state for this site; `immediate` skips the debounce used for sliders. */
-function save(immediate = true) {
-  state = CCS.normalizeSettings(state);
+function update(patch, immediate = true) {
+  state = CCS.normalizeSettings(CCSControls.merge(state, patch));
   render();
   clearTimeout(saveTimer);
-  const write = async () => {
-    const { sites = {} } = await chrome.storage.local.get('sites');
-    await chrome.storage.local.set({ sites: { ...sites, [host]: state } });
-  };
-  if (immediate) write();
-  else saveTimer = setTimeout(write, 120);
-}
-
-function update(patch, immediate = true) {
-  state = { ...state, ...patch, custom: { ...state.custom, ...(patch.custom || {}) } };
-  save(immediate);
+  if (immediate) CCSControls.save(host, state);
+  else saveTimer = setTimeout(() => CCSControls.save(host, state), 120);
 }
 
 function toast(text) {
@@ -148,23 +126,15 @@ function customFromPage() {
 
 $('enabled').addEventListener('change', (e) => update({ enabled: e.target.checked }));
 
-$('modes').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-mode]');
-  if (b) update({ mode: b.dataset.mode, enabled: true });
-});
+CCSControls.mount($('controls'));
+// Picking a mode also switches the extension on for the site.
+CCSControls.bind((patch, immediate) => update(patch.mode ? { ...patch, enabled: true } : patch, immediate));
 
-$('monoTarget').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-value]');
-  if (b) update({ monoTarget: b.dataset.value });
+$('openPreview').addEventListener('click', () => {
+  const q = new URLSearchParams({ tab: String(tab.id), host });
+  chrome.tabs.create({ url: chrome.runtime.getURL(`preview/preview.html?${q}`) });
+  window.close();
 });
-
-$('monoColor').addEventListener('input', (e) => update({ monoColor: e.target.value }, false));
-$('customBg').addEventListener('input', (e) => update({ custom: { bg: e.target.value } }, false));
-$('customText').addEventListener('input', (e) => update({ custom: { text: e.target.value } }, false));
-$('customAccent').addEventListener('input', (e) => update({ custom: { accent: e.target.value } }, false));
-$('contrast').addEventListener('input', (e) => update({ contrast: Number(e.target.value) }, false));
-$('brightness').addEventListener('input', (e) => update({ brightness: Number(e.target.value) }, false));
-$('dimImages').addEventListener('change', (e) => update({ dimImages: e.target.checked }));
 
 $('analyze').addEventListener('click', analyze);
 $('monoFromAccent').addEventListener('click', () => {

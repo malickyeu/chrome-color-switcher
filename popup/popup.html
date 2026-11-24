@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Color Switcher</title>
+  <link rel="stylesheet" href="../ui/controls.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -20,59 +21,7 @@
   <p id="unsupported" class="notice" hidden>Na této stránce rozšíření běžet nemůže (interní stránky prohlížeče, Web Store…).</p>
 
   <main id="main">
-    <section>
-      <h2>Režim</h2>
-      <div class="modes" id="modes">
-        <button data-mode="flip" title="Světlý web ztmaví, tmavý zesvětlí">Překlopit</button>
-        <button data-mode="dark">Tmavý</button>
-        <button data-mode="light">Světlý</button>
-        <button data-mode="filter" title="Rychlé invertování celé stránky CSS filtrem">Invert</button>
-        <button data-mode="mono">Mono</button>
-        <button data-mode="sepia">Sepia</button>
-        <button data-mode="gray">Šedá</button>
-        <button data-mode="custom">Vlastní</button>
-      </div>
-    </section>
-
-    <section id="mono-opts" class="opts" hidden>
-      <div class="row">
-        <label for="monoColor">Odstín</label>
-        <input type="color" id="monoColor">
-      </div>
-    </section>
-
-    <section id="target-opts" class="opts" hidden>
-      <div class="row">
-        <span>Základ</span>
-        <div class="seg" id="monoTarget">
-          <button data-value="dark">Tmavý</button>
-          <button data-value="light">Světlý</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="custom-opts" class="opts" hidden>
-      <div class="row"><label for="customBg">Pozadí</label><input type="color" id="customBg"></div>
-      <div class="row"><label for="customText">Text</label><input type="color" id="customText"></div>
-      <div class="row"><label for="customAccent">Akcent</label><input type="color" id="customAccent"></div>
-    </section>
-
-    <section class="opts">
-      <div class="row">
-        <label for="contrast">Kontrast</label>
-        <input type="range" id="contrast" min="0.5" max="1.5" step="0.05">
-        <output id="contrastOut"></output>
-      </div>
-      <div class="row">
-        <label for="brightness">Jas</label>
-        <input type="range" id="brightness" min="-0.3" max="0.3" step="0.02">
-        <output id="brightnessOut"></output>
-      </div>
-      <div class="row">
-        <label for="dimImages">Ztlumit obrázky</label>
-        <input type="checkbox" id="dimImages">
-      </div>
-    </section>
+    <div id="controls"></div>
 
     <section>
       <div class="row head">
@@ -96,6 +45,7 @@
   </main>
 
   <footer>
+    <button id="openPreview" class="link" title="Otevřít náhled schématu na ukázkovém webu">Náhled</button>
     <button id="saveDefault" class="link" title="Použít aktuální nastavení pro všechny weby bez vlastního nastavení">Nastavit jako výchozí</button>
     <button id="resetSite" class="link" title="Smazat nastavení tohoto webu">Zapomenout web</button>
     <span id="toast" class="toast" aria-live="polite"></span>
@@ -104,6 +54,7 @@
   <script src="../src/color.js"></script>
   <script src="../src/scheme.js"></script>
   <script src="../src/settings.js"></script>
+  <script src="../ui/controls.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

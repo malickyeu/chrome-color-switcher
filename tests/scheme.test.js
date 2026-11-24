@@ -89,3 +89,33 @@ test('dark: typical dark-gray body text ends up close to the target text color',
   for (const hex of ['#000000', '#222222', '#333333']) assert.ok(L(tx(hex, 'text', sc)) > 0.8, hex);
   assert.ok(L(tx('#222222', 'text', sc)) > L(tx('#777777', 'text', sc)), 'keeps the order of text emphasis');
 });
+
+test('remapPalette pairs colors with their remapped version and skips garbage', () => {
+  const sc = scheme({ mode: 'dark' });
+  const pairs = S.remapPalette(['#FFFFFF', 'nope', 'rgba(0,0,0,.5)'], 'bg', sc);
+  assert.equal(pairs.length, 2);
+  assert.equal(pairs[0].from, '#ffffff');
+  assert.equal(pairs[0].to, sc.bg);
+  assert.match(pairs[1].to, /^#[0-9a-f]{6}$/, 'output is always opaque hex');
+});
+
+test('pageBaseCss sets the canvas, color-scheme and optional image dimming', () => {
+  const sc = scheme({ mode: 'dark' });
+  const css = S.pageBaseCss(sc, normalizeSettings({ dimImages: true }));
+  assert.ok(css.includes(':root{color-scheme:dark;}'));
+  assert.ok(css.includes(`html{background-color:${sc.bg};color:${sc.text};}`));
+  assert.ok(css.includes('img,video,svg image{filter:brightness(0.8)'));
+  assert.ok(!S.pageBaseCss(sc, normalizeSettings({})).includes('brightness'));
+});
+
+test('filterCss inverts the page and re-inverts media', () => {
+  const css = S.filterCss(normalizeSettings({ contrast: 1.2, brightness: -0.1 }));
+  assert.match(css, /html\{filter:invert\(1\) hue-rotate\(180deg\) contrast\(1\.2\) brightness\(0\.90\) !important;\}/);
+  assert.match(css, /img,video,canvas,iframe,embed,object,svg image\{filter:invert\(1\) hue-rotate\(180deg\) !important;\}/);
+});
+
+test('colored shadows (focus rings) are not crushed to black, neutral ones are darkened', () => {
+  const sc = scheme({ mode: 'dark' });
+  assert.ok(L(tx('#3b82f6', 'shadow', sc)) > 0.3);
+  assert.ok(L(tx('#ffffff', 'shadow', sc)) < 0.15);
+});
