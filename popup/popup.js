@@ -17,14 +17,14 @@ async function load() {
   host = where && CCS.splitKey(where).host;
   if (!host) {
     $('host').textContent = '–';
-    $('host').hidden = false;
-    $('scope').hidden = true;
     $('unsupported').hidden = false;
     $('main').hidden = true;
     $('enabled').disabled = true;
     document.querySelector('footer').hidden = true;
     return;
   }
+  $('host').textContent = host;
+  $('scopeRow').hidden = false;
   const store = await chrome.storage.local.get(['defaults', 'sites']);
   scope = CCS.matchSite(store.sites, where) || host;
   fillScopes(store.sites || {});
@@ -38,19 +38,22 @@ function ensureContent() {
   return chrome.runtime.sendMessage({ type: 'ensureContent', tabId: tab.id }).catch((e) => ({ ok: false, error: e.message }));
 }
 
+/** Scope buttons: "Celý web" plus the leading path segments of the tab URL; • marks own settings. */
 function fillScopes(sites) {
-  const sel = $('scope');
   const keys = CCS.scopesFor(where);
   if (!keys.includes(scope)) keys.push(scope);
-  sel.replaceChildren(
+  $('scope').replaceChildren(
     ...keys.map((k) => {
-      const path = CCS.splitKey(k).path;
-      const own = sites[k] ? ' •' : '';
-      return new Option(path ? `${path.replace(/\/+$/, '')}/… (jen tato část)${own}` : `${k} (celý web)${own}`, k);
+      const path = CCS.splitKey(k).path.replace(/\/+$/, '');
+      const b = document.createElement('button');
+      b.dataset.value = k;
+      b.textContent = path || 'Celý web';
+      b.title = `${path ? `Jen ${host}${path} a vše pod tím` : `Celý web ${host}`}${sites[k] ? ' (má vlastní nastavení)' : ''}`;
+      b.classList.toggle('active', k === scope);
+      b.classList.toggle('own', !!sites[k]);
+      return b;
     }),
   );
-  sel.value = scope;
-  sel.title = `Nastavení platí pro ${scope}${CCS.splitKey(scope).path ? ' a vše pod tím' : ''}. • = má vlastní nastavení.`;
 }
 
 async function changeScope(key) {
@@ -168,7 +171,10 @@ function customFromPage() {
 // ---------- events ----------
 
 $('enabled').addEventListener('change', (e) => update({ enabled: e.target.checked }));
-$('scope').addEventListener('change', (e) => changeScope(e.target.value));
+$('scope').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-value]');
+  if (b && b.dataset.value !== scope) changeScope(b.dataset.value);
+});
 
 CCSControls.mount($('controls'));
 // Picking a mode also switches the extension on for the site.

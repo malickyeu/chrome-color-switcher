@@ -274,6 +274,41 @@ async function main() {
       assert.equal(await styleCount(), 1, 'still one override style');
     });
 
+    await check('popup scope buttons edit a path scope', async () => {
+      const extId = new URL(sw.url).host;
+      const id = await siteTabId();
+      const { targetId: popTarget } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+      const pop = (await cdp.send('Target.attachToTarget', { targetId: popTarget, flatten: true })).sessionId;
+      await cdp.send('Page.enable', {}, pop);
+      // Opened as a tab the popup would see itself as the active tab, so point it at the site tab.
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `chrome.tabs.query = async () => [{ id: ${id}, url: ${JSON.stringify(`${siteUrl}chat/room/1`)} }];`,
+      }, pop);
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 352, height: 560, deviceScaleFactor: 2, mobile: false }, pop);
+      await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, pop);
+      await cdp.send('Page.navigate', { url: `chrome-extension://${extId}/popup/popup.html` }, pop);
+      await sleep(800);
+      const buttons = () => cdp.eval(pop, `[...document.querySelectorAll('#scope button')].map((b) => [b.textContent, b.className])`);
+      assert.deepEqual(await buttons(), [['Celý web', ''], ['/chat', 'active own'], ['/chat/room', '']]);
+      await shot('5-popup-light', pop);
+      await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, pop);
+      await sleep(200);
+      await shot('6-popup-dark', pop);
+      const fg = await cdp.eval(pop, `getComputedStyle(document.querySelector('#scope button:not(.active)')).color`);
+      const bg = await cdp.eval(pop, `getComputedStyle(document.querySelector('#scope button:not(.active)')).backgroundColor`);
+      assert.ok(C.contrastRatio(C.parseColor(fg), C.parseColor(bg)) > 7, `scope button contrast ${fg} on ${bg}`);
+      await cdp.eval(pop, `document.querySelector('#scope [data-value="127.0.0.1/chat/room"]').click()`);
+      await sleep(200);
+      await cdp.eval(pop, `document.querySelector('#modes [data-mode="sepia"]').click()`);
+      await sleep(300);
+      const sites = await cdp.eval(swSession, `chrome.storage.local.get('sites').then((s) => s.sites)`);
+      assert.equal(sites['127.0.0.1/chat/room'].mode, 'sepia', 'saved under the picked scope');
+      assert.equal(sites['127.0.0.1/chat'].mode, 'light', 'parent scope untouched');
+      assert.equal(sites['127.0.0.1'], undefined, 'host untouched');
+      assert.deepEqual((await buttons()).map((b) => b[1]), ['', 'own', 'active own']);
+      await cdp.send('Target.closeTarget', { targetId: popTarget });
+    });
+
     await setSite({ enabled: true, mode: 'dark' });
     await sleep(600);
     await setSite({ enabled: false, mode: 'dark' });

@@ -14,9 +14,12 @@ footer { border-top: 1px solid var(--border); position: relative; }
 
 .site { display: flex; flex-direction: column; min-width: 0; }
 .site strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#scope { font: inherit; font-weight: 600; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 4px; margin-left: -5px; max-width: 250px; text-overflow: ellipsis; cursor: pointer; }
-#scope:hover, #scope:focus { border-color: var(--border); }
-#scope option { color: initial; background: initial; }
+.scope-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.scope-row .label { flex: none; }
+#scope { min-width: 0; }
+#scope button { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#scope button.own::after { content: " •"; color: var(--accent); }
+#scope button.active.own::after { color: inherit; }
 
 main section { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 main section.opts { padding-top: 4px; }

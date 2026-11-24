@@ -9,15 +9,18 @@
 <body>
   <header>
     <div class="site">
-      <label class="label" for="scope">Platí pro</label>
-      <strong id="host" hidden>–</strong>
-      <select id="scope" title="Nastavení může platit pro celý web, nebo jen pro část (např. /chat)"></select>
+      <span class="label">Web</span>
+      <strong id="host">–</strong>
     </div>
     <label class="switch" title="Zapnout na tomto webu (Alt+Shift+D)">
       <input type="checkbox" id="enabled">
       <span class="slider"></span>
     </label>
   </header>
+  <div class="scope-row" id="scopeRow" hidden>
+    <span class="label">Platí pro</span>
+    <div class="seg" id="scope" title="Nastavení může platit pro celý web, nebo jen pro jeho část (např. /chat a vše pod tím)"></div>
+  </div>
 
   <p id="unsupported" class="notice" hidden>Na této stránce rozšíření běžet nemůže (interní stránky prohlížeče, Web Store…).</p>
 

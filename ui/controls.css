@@ -69,7 +69,9 @@ input[type="color"] {
 .seg { display: inline-flex; }
 .seg button { border-radius: 0; padding: 4px 12px; }
 .seg button:first-child { border-radius: 6px 0 0 6px; }
-.seg button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button:only-child { border-radius: 6px; }
+.seg button + button { border-left: 0; }
 
 .palette-group { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
 .palette-group > span { flex: 0 0 56px; color: var(--muted); font-size: 12px; }
