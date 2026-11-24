@@ -67,3 +67,40 @@ test('locationKey keeps host and path of supported pages', () => {
   assert.equal(S.locationKey('chrome://extensions'), null);
   assert.equal(S.locationKey('nonsense'), null);
 });
+
+test('sites share the scheme from defaults and only store enabled', () => {
+  let store = { defaults: { mode: 'dark' }, sites: {} };
+  store = S.writeSettings(store, 'a.cz', { ...S.effectiveSettings(store, 'a.cz'), enabled: true });
+  store = S.writeSettings(store, 'b.cz', { ...S.effectiveSettings(store, 'b.cz'), enabled: true, mode: 'sepia' });
+  assert.deepEqual(store.sites, { 'a.cz': { enabled: true }, 'b.cz': { enabled: true } });
+  assert.equal(store.defaults.mode, 'sepia');
+  assert.equal(S.effectiveSettings(store, 'a.cz/x').mode, 'sepia', 'scheme change on b.cz reaches a.cz');
+  assert.equal(S.effectiveSettings(store, 'a.cz/x').enabled, true);
+  assert.equal(S.effectiveSettings(store, 'c.cz/').enabled, false);
+});
+
+test('own scheme stays on its scope and edits go to it', () => {
+  let store = { defaults: { mode: 'dark' }, sites: { 'tw.cz': { enabled: true } } };
+  store = S.setOwnScheme(store, 'tw.cz', true);
+  assert.equal(S.schemeSource(store.sites, 'tw.cz/chat/1'), 'tw.cz');
+  store = S.writeSettings(store, 'tw.cz/chat', { ...S.effectiveSettings(store, 'tw.cz/chat'), mode: 'mono' });
+  assert.equal(store.sites['tw.cz'].mode, 'mono', 'edit lands in the scheme the scope inherits');
+  assert.deepEqual(store.sites['tw.cz/chat'], { enabled: true });
+  assert.equal(store.defaults.mode, 'dark', 'shared scheme untouched');
+  store = S.setOwnScheme(store, 'tw.cz', false);
+  assert.deepEqual(store.sites['tw.cz'], { enabled: true });
+  assert.equal(S.effectiveSettings(store, 'tw.cz').mode, 'dark');
+});
+
+test('path entries layer over the host entry', () => {
+  const store = { defaults: { mode: 'dark' }, sites: { 'tw.cz': { enabled: false, mode: 'gray' }, 'tw.cz/chat': { enabled: true } } };
+  const chat = S.effectiveSettings(store, 'tw.cz/chat/conversations/42545');
+  assert.equal(chat.enabled, true);
+  assert.equal(chat.mode, 'gray', 'inherits the host scheme');
+  assert.equal(S.effectiveSettings(store, 'tw.cz/projects').enabled, false);
+});
+
+test('migrateSites keeps only enabled from 0.3 full copies', () => {
+  const old = { 'a.cz': { enabled: true, mode: 'gray', contrast: 1.2, custom: { bg: '#000000' } }, 'b.cz': { mode: 'dark' } };
+  assert.deepEqual(S.migrateSites(old), { 'a.cz': { enabled: true }, 'b.cz': {} });
+});

@@ -285,6 +285,34 @@ async function main() {
       assert.equal(await styleCount(), 1, 'still one override style');
     });
 
+    await check('several tabs follow their settings at the same time', async () => {
+      const port = new URL(siteUrl).port;
+      const open = async (url) => {
+        const { targetId: t } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+        const sid = (await cdp.send('Target.attachToTarget', { targetId: t, flatten: true })).sessionId;
+        await cdp.send('Page.enable', {}, sid);
+        await cdp.send('Page.navigate', { url }, sid);
+        return { t, sid };
+      };
+      const a = await open(`http://localhost:${port}/`);
+      const b = await open(`http://localhost:${port}/other`);
+      await sleep(1500);
+      const bodyL = async (sid) => C.rgbToOklch(C.parseColor(await cdp.eval(sid, 'getComputedStyle(document.body).backgroundColor'))).l;
+      const set = (sites) => cdp.eval(swSession, `chrome.storage.local.get('sites').then((s) => chrome.storage.local.set({ sites: { ...s.sites, ...${JSON.stringify(sites)} } }))`);
+      await set({ localhost: { enabled: true, mode: 'dark' }, '127.0.0.1/chat': { enabled: true, mode: 'dark' } });
+      await sleep(700);
+      const all = async () => [await L('body', 'backgroundColor'), await bodyL(a.sid), await bodyL(b.sid)];
+      let [main, la, lb] = await all();
+      assert.ok(main < 0.3 && la < 0.3 && lb < 0.3, `all dark after enabling localhost: ${[main, la, lb]}`);
+      await set({ localhost: { enabled: true, mode: 'light' } });
+      await sleep(700);
+      [main, la, lb] = await all();
+      assert.ok(main < 0.3, `127.0.0.1 tab unchanged: ${main}`);
+      assert.ok(la > 0.9 && lb > 0.9, `both localhost tabs switched live: ${[la, lb]}`);
+      await cdp.send('Target.closeTarget', { targetId: a.t });
+      await cdp.send('Target.closeTarget', { targetId: b.t });
+    });
+
     await check('popup scope buttons edit a path scope', async () => {
       const extId = new URL(sw.url).host;
       const id = await siteTabId();
@@ -311,12 +339,24 @@ async function main() {
       await cdp.eval(pop, `document.querySelector('#scope [data-value="127.0.0.1/chat/room"]').click()`);
       await sleep(200);
       await cdp.eval(pop, `document.querySelector('#modes [data-mode="sepia"]').click()`);
-      await sleep(300);
-      const sites = await cdp.eval(swSession, `chrome.storage.local.get('sites').then((s) => s.sites)`);
-      assert.equal(sites['127.0.0.1/chat/room'].mode, 'sepia', 'saved under the picked scope');
-      assert.equal(sites['127.0.0.1/chat'].mode, 'light', 'parent scope untouched');
-      assert.equal(sites['127.0.0.1'], undefined, 'host untouched');
+      await sleep(400);
+      let store = await cdp.eval(swSession, `chrome.storage.local.get(['sites', 'defaults'])`);
+      assert.deepEqual(store.sites['127.0.0.1/chat/room'], { enabled: true }, 'scope stores only enabled');
+      assert.equal(store.sites['127.0.0.1/chat'].mode, 'sepia', 'mode goes to the inherited own scheme of /chat');
+      assert.equal((store.defaults || {}).mode, undefined, 'shared scheme untouched');
       assert.deepEqual((await buttons()).map((b) => b[1]), ['', 'own', 'active own']);
+      await sleep(400);
+      assert.match(await cdp.eval(pop, `document.getElementById('diag').textContent`), /^Stránka \/chat\/conversations\/42545 → platí \/chat · přebarveno \(sepia\)$/,
+        `diagnostics: ${await cdp.eval(pop, "document.getElementById('diag').textContent")}`);
+
+      await cdp.eval(pop, `document.getElementById('ownScheme').click()`);
+      await sleep(300);
+      await cdp.eval(pop, `document.querySelector('#modes [data-mode="mono"]').click()`);
+      await sleep(400);
+      store = await cdp.eval(swSession, `chrome.storage.local.get(['sites', 'defaults'])`);
+      assert.equal(store.sites['127.0.0.1/chat/room'].mode, 'mono', 'own scheme stored on the scope');
+      assert.equal(store.sites['127.0.0.1/chat'].mode, 'sepia', 'parent scheme untouched');
+      assert.equal(await cdp.eval(pop, `document.getElementById('ownScheme').checked`), true);
       await cdp.send('Target.closeTarget', { targetId: popTarget });
     });
 

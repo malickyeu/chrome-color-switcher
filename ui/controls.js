@@ -100,11 +100,10 @@
     return { ...state, ...patch, custom: { ...state.custom, ...(patch.custom || {}) } };
   }
 
-  /** Writes settings for a host, or the global defaults when host is null. */
-  async function save(host, state) {
-    if (!host) return chrome.storage.local.set({ defaults: state });
-    const { sites = {} } = await chrome.storage.local.get('sites');
-    return chrome.storage.local.set({ sites: { ...sites, [host]: state } });
+  /** Writes settings edited for a scope (null = global defaults); see CCS.writeSettings. */
+  async function save(scope, state) {
+    const store = await chrome.storage.local.get(['defaults', 'sites']);
+    return chrome.storage.local.set(root.CCS.writeSettings(store, scope, state));
   }
 
   root.CCSControls = { mount, render, bind, merge, save };

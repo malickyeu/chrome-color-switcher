@@ -19,7 +19,11 @@
   </header>
   <div class="scope-row" id="scopeRow" hidden>
     <span class="label">Platí pro</span>
-    <div class="seg" id="scope" title="Nastavení může platit pro celý web, nebo jen pro jeho část (např. /chat a vše pod tím)"></div>
+    <div class="seg" id="scope" title="Zapnutí může platit pro celý web, nebo jen pro jeho část (např. /chat a vše pod tím)"></div>
+  </div>
+  <div class="scope-opts" id="scopeOpts" hidden>
+    <label title="Bez zaškrtnutí používají všechny weby jedno společné schéma"><input type="checkbox" id="ownScheme"><span>Vlastní schéma pro <span id="scopeName"></span></span></label>
+    <p id="diag" class="muted diag"></p>
   </div>
 
   <p id="unsupported" class="notice" hidden>Na této stránce rozšíření běžet nemůže (interní stránky prohlížeče, Web Store…).</p>
@@ -50,7 +54,6 @@
 
   <footer>
     <button id="openPreview" class="link" title="Otevřít náhled schématu na ukázkovém webu">Náhled</button>
-    <button id="saveDefault" class="link" title="Použít aktuální nastavení pro všechny weby bez vlastního nastavení">Nastavit jako výchozí</button>
     <button id="resetSite" class="link" title="Smazat nastavení pro vybraný rozsah">Zapomenout</button>
     <span id="toast" class="toast" aria-live="polite"></span>
   </footer>

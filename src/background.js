@@ -37,7 +37,12 @@ async function ensureContent(tabId) {
   return { ok: true, injected: true };
 }
 
+const STORE_SCHEMA = 2;
+
 chrome.runtime.onInstalled.addListener(async () => {
+  // 0.3 stored a full copy of the scheme per site; since 0.4 the scheme is shared.
+  const { schema = 1, sites } = await chrome.storage.local.get(['schema', 'sites']);
+  if (schema < STORE_SCHEMA) await chrome.storage.local.set({ schema: STORE_SCHEMA, sites: CCS.migrateSites(sites) });
   const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*', 'file:///*'] });
   for (const tab of tabs) {
     if (!tab.discarded) chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: CONTENT_FILES }).catch(() => {});
@@ -80,7 +85,7 @@ async function toggleSite(tab) {
   const store = await chrome.storage.local.get(['defaults', 'sites']);
   const key = CCS.matchSite(store.sites, where) || CCS.splitKey(where).host;
   const current = CCS.effectiveSettings(store, where);
-  const sites = { ...(store.sites || {}), [key]: { ...current, enabled: !current.enabled } };
+  const sites = { ...(store.sites || {}), [key]: { ...((store.sites || {})[key] || {}), enabled: !current.enabled } };
   await chrome.storage.local.set({ sites });
 }
 

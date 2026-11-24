@@ -20,6 +20,9 @@ footer { border-top: 1px solid var(--border); position: relative; }
 #scope button { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #scope button.own::after { content: " •"; color: var(--accent); }
 #scope button.active.own::after { color: inherit; }
+.scope-opts { padding: 6px 14px 8px; border-bottom: 1px solid var(--border); }
+.scope-opts label { display: flex; align-items: center; gap: 6px; }
+.diag { margin: 4px 0 0; font-size: 11px; overflow-wrap: anywhere; }
 
 main section { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 main section.opts { padding-top: 4px; }

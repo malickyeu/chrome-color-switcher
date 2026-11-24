@@ -121,7 +121,7 @@
         sendResponse({ ok: false, error: String(e && e.message ? e.message : e) });
       }
     } else if (msg.type === 'ping') {
-      sendResponse({ ok: true, host, where, applied, pageBase, scheme: scheme && { bg: scheme.bg, text: scheme.text, target: scheme.target } });
+      sendResponse({ ok: true, host, where, scope: detectedKey, mode: settings.mode, applied, pageBase, scheme: scheme && { bg: scheme.bg, text: scheme.text, target: scheme.target } });
     }
     return undefined;
   });

@@ -25,13 +25,44 @@ async function load() {
   }
   $('host').textContent = host;
   $('scopeRow').hidden = false;
+  $('scopeOpts').hidden = false;
   const store = await chrome.storage.local.get(['defaults', 'sites']);
   scope = CCS.matchSite(store.sites, where) || host;
-  fillScopes(store.sites || {});
-  state = CCS.effectiveSettings(store, scope);
-  render();
+  refresh(store);
   // Tabs opened before the extension was (re)loaded get the content script now, no reload needed.
-  ensureContent();
+  await ensureContent();
+  diagnose();
+}
+
+/** Re-reads everything that depends on the stored settings for the current scope. */
+function refresh(store) {
+  const sites = store.sites || {};
+  fillScopes(sites);
+  state = CCS.effectiveSettings(store, scope);
+  const source = CCS.schemeSource(sites, scope);
+  $('ownScheme').checked = source === scope;
+  $('scopeName').textContent = label(scope);
+  $('ownScheme').parentElement.title = source && source !== scope
+    ? `Schéma se dědí z ${label(source)}`
+    : 'Bez zaškrtnutí používají všechny weby jedno společné schéma';
+  render();
+}
+
+const label = (key) => {
+  const path = CCS.splitKey(key).path.replace(/\/+$/, '');
+  return path ? `${path}/…` : 'celý web';
+};
+
+/** Shows what the content script in the tab sees, so a scope that does not apply is easy to spot. */
+async function diagnose() {
+  try {
+    const r = await chrome.tabs.sendMessage(tab.id, { type: 'ping' }, { frameId: 0 });
+    const page = CCS.splitKey(r.where || host).path || '/';
+    const applies = r.scope === host ? 'celý web' : CCS.splitKey(r.scope).path;
+    $('diag').textContent = `Stránka ${page} → platí ${applies} · ${r.applied ? `přebarveno (${r.mode})` : 'nepřebarveno'}`;
+  } catch (e) {
+    $('diag').textContent = 'Na stránce neběží skript rozšíření.';
+  }
 }
 
 function ensureContent() {
@@ -58,10 +89,7 @@ function fillScopes(sites) {
 
 async function changeScope(key) {
   scope = key;
-  const store = await chrome.storage.local.get(['defaults', 'sites']);
-  fillScopes(store.sites || {});
-  state = CCS.effectiveSettings(store, scope);
-  render();
+  refresh(await chrome.storage.local.get(['defaults', 'sites']));
 }
 
 function render() {
@@ -82,6 +110,7 @@ async function save() {
   await CCSControls.save(scope, state);
   const { sites = {} } = await chrome.storage.local.get('sites');
   fillScopes(sites);
+  setTimeout(diagnose, 300);
 }
 
 function toast(text) {
@@ -194,19 +223,20 @@ $('monoFromAccent').addEventListener('click', () => {
 });
 $('customFromPage').addEventListener('click', customFromPage);
 
-$('saveDefault').addEventListener('click', async () => {
-  await chrome.storage.local.set({ defaults: state });
-  toast('Uloženo jako výchozí');
+$('ownScheme').addEventListener('change', async (e) => {
+  const store = await chrome.storage.local.get(['defaults', 'sites']);
+  const next = CCS.setOwnScheme(store, scope, e.target.checked);
+  await chrome.storage.local.set(next);
+  refresh(next);
+  toast(e.target.checked ? `Vlastní schéma pro ${label(scope)}` : 'Společné schéma');
 });
 
 $('resetSite').addEventListener('click', async () => {
   const { sites = {}, defaults } = await chrome.storage.local.get(['sites', 'defaults']);
   delete sites[scope];
   await chrome.storage.local.set({ sites });
-  state = CCS.effectiveSettings({ sites, defaults }, scope);
-  fillScopes(sites);
-  render();
-  toast(`Nastavení ${scope} smazáno`);
+  refresh({ sites, defaults });
+  toast(`Nastavení ${label(scope)} smazáno`);
 });
 
 load();

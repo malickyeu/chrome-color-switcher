@@ -137,7 +137,7 @@ function segmented(id, onPick) {
 function initTargetSelect() {
   const sel = $('target');
   if (siteHost) sel.append(new Option(`Web ${siteHost}`, siteHost));
-  sel.append(new Option('Výchozí nastavení (všechny weby)', ''));
+  sel.append(new Option('Společné schéma (všechny weby)', ''));
   sel.value = siteHost || '';
   sel.addEventListener('change', () => {
     target = sel.value || null;
