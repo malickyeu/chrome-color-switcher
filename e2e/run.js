@@ -259,6 +259,17 @@ async function main() {
       assert.ok((await L('body', 'backgroundColor')) < 0.3, '/chat/room/1 is dark again');
     });
 
+    await cdp.eval(swSession, `chrome.storage.local.set({ sites: { '127.0.0.1': { enabled: false, mode: 'gray' }, '127.0.0.1/chat': { enabled: true, mode: 'flip' } } })`);
+    await cdp.send('Page.navigate', { url: `${siteUrl}chat/conversations/42545` }, page);
+    await sleep(1500);
+    await check('path scope applies on direct load of a deep URL in flip mode', async () => {
+      assert.ok((await L('body', 'backgroundColor')) < 0.3, 'deep /chat URL is dark');
+      const detected = await cdp.eval(swSession, `chrome.storage.local.get('detected').then((s) => s.detected)`);
+      assert.equal(detected['127.0.0.1/chat'], 'light', 'base stored under the scope');
+    });
+    await cdp.eval(swSession, `chrome.storage.local.set({ sites: { '127.0.0.1/chat': { enabled: true, mode: 'dark' } } })`);
+    await sleep(600);
+
     await check('content script can be injected again and takes over', async () => {
       const id = await siteTabId();
       const resp = await cdp.eval(swSession, `ensureContent(${id})`);
