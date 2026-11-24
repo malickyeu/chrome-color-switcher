@@ -26,8 +26,10 @@ function findChromium() {
   const base = path.join(os.homedir(), '.cache', 'ms-playwright');
   const dirs = fs.existsSync(base) ? fs.readdirSync(base).filter((d) => /^chromium-\d+$/.test(d)).sort().reverse() : [];
   for (const d of dirs) {
-    const bin = path.join(base, d, 'chrome-linux64', 'chrome');
-    if (fs.existsSync(bin)) return bin;
+    for (const sub of ['chrome-linux64', 'chrome-linux']) {
+      const bin = path.join(base, d, sub, 'chrome');
+      if (fs.existsSync(bin)) return bin;
+    }
   }
   throw new Error('Chromium not found, set CHROME_PATH');
 }
