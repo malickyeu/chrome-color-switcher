@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <title>Testovací web</title>
+  <link rel="stylesheet" href="http://127.0.0.1:PORT2/cross.css">
+  <style>
+    :root { --surface: #ffffff; --ink: #222222; --brand: #0b63ce; --brand-rgb: 11, 99, 206; }
+    body { margin: 0; font: 16px/1.5 sans-serif; background: var(--surface); color: var(--ink); }
+    header { background: #f2f4f7; border-bottom: 1px solid #dddddd; padding: 16px; }
+    .card { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15); margin: 16px; padding: 16px; }
+    .btn { background: var(--brand); color: #fff; padding: 6px 12px; border-radius: 4px; display: inline-block; }
+    .tint { background: rgba(var(--brand-rgb), 0.1); padding: 8px; }
+    @media (min-width: 10px) { .mq { color: #333; } }
+  </style>
+</head>
+<body>
+  <header><h1 id="title">Světlý web bez tmavého režimu</h1></header>
+  <div class="card" id="card">
+    <p class="mq" id="mq">Text v media query.</p>
+    <span class="btn" id="btn">Tlačítko</span>
+    <div class="tint" id="tint">Průhledný odstín přes RGB proměnnou</div>
+    <p class="cross" id="cross">Styl z cizího originu</p>
+    <p id="inline" style="color: #000; background-color: #fafafa">Inline styl</p>
+    <table><tr><td bgcolor="#ffffcc" id="legacy">bgcolor</td></tr></table>
+    <a href="#nikam" id="link">Odkaz bez stylu</a>
+  </div>
+</body>
+</html>

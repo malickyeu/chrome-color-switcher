@@ -1,0 +1,11 @@
+{
+  "name": "chrome-color-switcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension: dark/light switching, color inversion and custom color schemes for any website.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "test:e2e": "node e2e/run.js",
+    "icons": "node scripts/make-icons.js"
+  }
+}
