@@ -19,7 +19,9 @@ Rozšíření pro Chrome (Manifest V3), které umí ztmavit nebo zesvětlit libo
 | Sepia / Šedá | Teplé „papírové“ schéma / bez barev |
 | Vlastní | Vlastní barva pozadí, textu a akcentu |
 
-Ke všem režimům patří posuvníky kontrastu a jasu a volba ztlumení obrázků. Nastavení se ukládá zvlášť pro každý web, tlačítkem **Nastavit jako výchozí** ho použijete pro všechny weby bez vlastního nastavení. Pokud výchozí nastavení uložíte zapnuté, bude rozšíření aktivní všude.
+Ke všem režimům patří posuvníky kontrastu a jasu a volba ztlumení obrázků. Nastavení se ukládá zvlášť pro každý web a změny se projeví hned, bez obnovení stránky. Taby otevřené ještě před instalací nebo aktualizací rozšíření dostanou skript automaticky. Tlačítkem **Nastavit jako výchozí** ho použijete pro všechny weby bez vlastního nastavení. Pokud výchozí nastavení uložíte zapnuté, bude rozšíření aktivní všude.
+
+**Platí pro** (nahoře v popupu) určuje rozsah nastavení: celý web, nebo jen jeho část podle cesty. Například `teamwork.4net.tv/chat` platí pro `/chat` a vše pod ním, zbytek webu se řídí nastavením celého webu. Použije se nejdelší odpovídající cesta a funguje to i v SPA aplikacích, které mění URL bez načtení stránky. Rozsahy s vlastním nastavením jsou označené tečkou •.
 
 **Analýza stránky** ukáže, jestli je web světlý nebo tmavý, kolik má stylesheetů, pravidel a CSS proměnných, a dominantní barvy pozadí, textu a akcentů. Klik na barvu ji nastaví jako odstín (Mono) nebo akcent (Vlastní). **Vlastní z palety webu** vytvoří schéma z barev webu převedených do opačného jasu.
 
@@ -44,7 +46,7 @@ src/scheme.js      schémata a mapování jedné barvy podle role
 src/transform.js   přepis hodnot a CSS pravidel, role CSS proměnných
 src/settings.js    model nastavení a úložiště
 src/content.js     aplikace na stránce, sledování změn, analýza
-src/background.js  stahování cross-origin CSS, zkratka, badge
+src/background.js  stahování cross-origin CSS, vkládání skriptu do tabů, změny URL, zkratka, badge
 ui/controls.*      ovládací prvky sdílené popupem a náhledem
 popup/             popup
 preview/           stránka náhledu a ukázkový web

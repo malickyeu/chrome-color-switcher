@@ -14,6 +14,9 @@ footer { border-top: 1px solid var(--border); position: relative; }
 
 .site { display: flex; flex-direction: column; min-width: 0; }
 .site strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#scope { font: inherit; font-weight: 600; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 4px; margin-left: -5px; max-width: 250px; text-overflow: ellipsis; cursor: pointer; }
+#scope:hover, #scope:focus { border-color: var(--border); }
+#scope option { color: initial; background: initial; }
 
 main section { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 main section.opts { padding-top: 4px; }

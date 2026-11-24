@@ -239,6 +239,41 @@ async function main() {
       await cdp.send('Target.closeTarget', { targetId: prevTarget.targetId });
     });
 
+    const siteTabId = () => cdp.eval(swSession, `chrome.tabs.query({}).then((tabs) => tabs.find((x) => x.url && x.url.startsWith(${JSON.stringify(siteUrl)})).id)`);
+    const styleCount = () => cdp.eval(page, 'document.querySelectorAll("style[data-ccs]").length');
+
+    await cdp.eval(swSession, `chrome.storage.local.set({ sites: { '127.0.0.1/chat': { enabled: true, mode: 'dark' } } })`);
+    await cdp.send('Page.navigate', { url: `${siteUrl}chat/` }, page);
+    await sleep(1500);
+    await check('path scope applies only under its prefix, also on SPA navigation', async () => {
+      assert.ok((await L('body', 'backgroundColor')) < 0.3, '/chat/ is dark');
+      await cdp.eval(page, `history.pushState(null, '', '/')`);
+      await sleep(700);
+      assert.ok((await L('body', 'backgroundColor')) > 0.95, '/ stays light after pushState');
+      assert.equal(await styleCount(), 0);
+      await cdp.eval(page, `history.pushState(null, '', '/chatroom')`);
+      await sleep(700);
+      assert.ok((await L('body', 'backgroundColor')) > 0.95, '/chatroom is not under /chat');
+      await cdp.eval(page, `history.pushState(null, '', '/chat/room/1')`);
+      await sleep(700);
+      assert.ok((await L('body', 'backgroundColor')) < 0.3, '/chat/room/1 is dark again');
+    });
+
+    await check('content script can be injected again and takes over', async () => {
+      const id = await siteTabId();
+      const resp = await cdp.eval(swSession, `ensureContent(${id})`);
+      assert.deepEqual(resp, { ok: true, injected: false }, 'live script answers ping');
+      await cdp.eval(swSession, `chrome.scripting.executeScript({ target: { tabId: ${id}, allFrames: true }, files: CONTENT_FILES }).then(() => true)`);
+      await sleep(800);
+      assert.equal(await styleCount(), 1, 'one override style');
+      assert.ok((await L('body', 'backgroundColor')) < 0.3, 'still dark');
+      assert.ok((await L('#inline', 'color')) > 0.7, 'inline text still remapped');
+      await cdp.eval(swSession, `chrome.storage.local.set({ sites: { '127.0.0.1/chat': { enabled: true, mode: 'light' } } })`);
+      await sleep(700);
+      assert.ok((await L('body', 'backgroundColor')) > 0.9, 'new instance switches live');
+      assert.equal(await styleCount(), 1, 'still one override style');
+    });
+
     await setSite({ enabled: true, mode: 'dark' });
     await sleep(600);
     await setSite({ enabled: false, mode: 'dark' });

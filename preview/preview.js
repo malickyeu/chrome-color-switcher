@@ -104,6 +104,7 @@ async function loadSiteReport() {
   $('siteBox').hidden = false;
   $('siteTitle').textContent = `Barvy webu ${siteHost}`;
   try {
+    await chrome.runtime.sendMessage({ type: 'ensureContent', tabId });
     const resp = await chrome.tabs.sendMessage(tabId, { type: 'analyze' }, { frameId: 0 });
     if (!resp || !resp.ok) throw new Error(resp ? resp.error : 'bez odpovědi');
     report = resp.report;

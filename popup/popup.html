@@ -9,8 +9,9 @@
 <body>
   <header>
     <div class="site">
-      <span class="label">Web</span>
-      <strong id="host">–</strong>
+      <label class="label" for="scope">Platí pro</label>
+      <strong id="host" hidden>–</strong>
+      <select id="scope" title="Nastavení může platit pro celý web, nebo jen pro část (např. /chat)"></select>
     </div>
     <label class="switch" title="Zapnout na tomto webu (Alt+Shift+D)">
       <input type="checkbox" id="enabled">
@@ -47,7 +48,7 @@
   <footer>
     <button id="openPreview" class="link" title="Otevřít náhled schématu na ukázkovém webu">Náhled</button>
     <button id="saveDefault" class="link" title="Použít aktuální nastavení pro všechny weby bez vlastního nastavení">Nastavit jako výchozí</button>
-    <button id="resetSite" class="link" title="Smazat nastavení tohoto webu">Zapomenout web</button>
+    <button id="resetSite" class="link" title="Smazat nastavení pro vybraný rozsah">Zapomenout</button>
     <span id="toast" class="toast" aria-live="polite"></span>
   </footer>
 

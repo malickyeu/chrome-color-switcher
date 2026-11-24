@@ -31,3 +31,39 @@ test('topHost uses the top-level origin inside iframes', () => {
   assert.equal(S.topHost(frame), 'top.cz');
   assert.equal(S.topHost({ href: 'https://solo.cz/', ancestorOrigins: [] }), 'solo.cz');
 });
+
+test('matchSite picks the longest whole-segment path prefix', () => {
+  const sites = { 'tw.cz': {}, 'tw.cz/chat': {}, 'tw.cz/chat/admin/': {}, 'other.cz/chat': {} };
+  assert.equal(S.matchSite(sites, 'tw.cz/'), 'tw.cz');
+  assert.equal(S.matchSite(sites, 'tw.cz/projects/1'), 'tw.cz');
+  assert.equal(S.matchSite(sites, 'tw.cz/chat'), 'tw.cz/chat');
+  assert.equal(S.matchSite(sites, 'tw.cz/chat/'), 'tw.cz/chat');
+  assert.equal(S.matchSite(sites, 'tw.cz/chat/room/5'), 'tw.cz/chat');
+  assert.equal(S.matchSite(sites, 'tw.cz/chatroom'), 'tw.cz');
+  assert.equal(S.matchSite(sites, 'tw.cz/chat/admin/users'), 'tw.cz/chat/admin/');
+  assert.equal(S.matchSite(sites, 'x.cz/chat'), null);
+  assert.equal(S.matchSite({ 'other.cz/chat': {} }, 'other.cz/'), null);
+});
+
+test('effectiveSettings applies a path scope only under its prefix', () => {
+  const store = { defaults: { mode: 'dark' }, sites: { 'tw.cz/chat': { enabled: true, mode: 'flip' } } };
+  assert.equal(S.effectiveSettings(store, 'tw.cz/chat/').enabled, true);
+  assert.equal(S.effectiveSettings(store, 'tw.cz/chat/').mode, 'flip');
+  assert.equal(S.effectiveSettings(store, 'tw.cz/').enabled, false);
+  assert.equal(S.effectiveSettings(store, 'tw.cz/').mode, 'dark');
+  assert.equal(S.effectiveSettings(store, 'tw.cz').mode, 'dark');
+});
+
+test('scopesFor offers the host and leading path segments', () => {
+  assert.deepEqual(S.scopesFor('tw.cz/chat/'), ['tw.cz', 'tw.cz/chat']);
+  assert.deepEqual(S.scopesFor('tw.cz/a/b/c'), ['tw.cz', 'tw.cz/a', 'tw.cz/a/b']);
+  assert.deepEqual(S.scopesFor('tw.cz/'), ['tw.cz']);
+  assert.deepEqual(S.scopesFor('file://'), ['file://']);
+});
+
+test('locationKey keeps host and path of supported pages', () => {
+  assert.equal(S.locationKey('https://tw.cz/chat/?x=1#y'), 'tw.cz/chat/');
+  assert.equal(S.locationKey('file:///home/a.html'), 'file://');
+  assert.equal(S.locationKey('chrome://extensions'), null);
+  assert.equal(S.locationKey('nonsense'), null);
+});

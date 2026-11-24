@@ -7,12 +7,20 @@
  */
 (() => {
   'use strict';
-  if (window.__ccsContentLoaded) return;
-  window.__ccsContentLoaded = true;
+  // The script can be injected again (into tabs opened before install, or after an extension reload);
+  // the newest instance takes over and the previous one cleans up after itself.
+  try {
+    if (window.__ccsInstance) window.__ccsInstance.dispose();
+  } catch (e) {
+    /* previous instance belongs to a dead extension context */
+  }
 
   const CCS = globalThis.CCS;
   const OWN_ATTR = 'data-ccs';
   const host = CCS.topHost(location);
+  let where = null; // location key of the tab ("host/path"), decides which site scope applies
+  let detectedKey = host; // storage key for the detected page base
+  let disposed = false;
   const isTop = window === window.top;
   const POLL_MS = 1500;
 
@@ -56,18 +64,40 @@
     }
   }
 
+  /** Iframes follow the scope of the tab, so they ask the service worker for the top-level URL. */
+  function resolveWhere(cb) {
+    if (isTop) return cb(CCS.locationKey(location.href) || host);
+    send({ type: 'tabUrl' }, (resp) => cb((resp && resp.url && CCS.locationKey(resp.url)) || host));
+  }
+
+  let loaded = false;
   function loadSettings() {
+    if (disposed || !alive()) return;
     chrome.storage.local.get(['defaults', 'sites', 'detected'], (store) => {
-      if (store.detected && store.detected[host]) pageBase = store.detected[host];
-      settings = CCS.effectiveSettings(store, host);
+      if (disposed) return;
+      const key = CCS.matchSite(store.sites, where) || host;
+      const next = CCS.effectiveSettings(store, where);
+      const base = store.detected && store.detected[key];
+      // SPA navigations reload settings often; skip the rebuild when nothing changed.
+      if (loaded && key === detectedKey && JSON.stringify(next) === JSON.stringify(settings) && (!base || base === pageBase)) return;
+      loaded = true;
+      detectedKey = key;
+      if (base) pageBase = base;
+      settings = next;
       apply();
     });
   }
 
+  function setLocation(key) {
+    if (!key || key === where) return;
+    where = key;
+    loadSettings();
+  }
+
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
+    if (disposed || area !== 'local') return;
     if (!isTop && changes.detected) {
-      const next = (changes.detected.newValue || {})[host];
+      const next = (changes.detected.newValue || {})[detectedKey];
       if (next && next !== pageBase) {
         pageBase = next;
         if (applied === 'smart' && settings.mode === 'flip') refreshScheme();
@@ -77,7 +107,13 @@
   });
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (!isTop || !msg) return undefined;
+    if (disposed || !msg) return undefined;
+    // Sent by the service worker to all frames when the tab URL changes (also history.pushState).
+    if (msg.type === 'url') {
+      setLocation(CCS.locationKey(msg.url) || host);
+      return undefined;
+    }
+    if (!isTop) return undefined;
     if (msg.type === 'analyze') {
       try {
         sendResponse({ ok: true, report: analyze() });
@@ -85,7 +121,7 @@
         sendResponse({ ok: false, error: String(e && e.message ? e.message : e) });
       }
     } else if (msg.type === 'ping') {
-      sendResponse({ ok: true, host, applied, pageBase, scheme: scheme && { bg: scheme.bg, text: scheme.text, target: scheme.target } });
+      sendResponse({ ok: true, host, where, applied, pageBase, scheme: scheme && { bg: scheme.bg, text: scheme.text, target: scheme.target } });
     }
     return undefined;
   });
@@ -322,6 +358,7 @@
 
   function onMutations(records) {
     if (!applied) return;
+    if (!alive()) return teardown(); // orphaned by an extension reload; a fresh instance takes over
     let sheetsDirty = false;
     let attrsDirty = false;
     const inline = new Set();
@@ -372,6 +409,7 @@
     document.addEventListener('load', onResourceLoad, true);
     // CSS-in-JS libraries use insertRule(), which no observer sees.
     pollTimer = setInterval(() => {
+      if (!alive()) return teardown();
       if (applied === 'smart' && signature() !== lastSignature) scheduleRebuild(true, 0);
     }, POLL_MS);
     const onReady = () => applied === 'smart' && scheduleRebuild(true, 0);
@@ -420,7 +458,7 @@
         refreshScheme();
       }
       chrome.storage.local.get('detected', ({ detected = {} }) => {
-        if (detected[host] !== base) chrome.storage.local.set({ detected: { ...detected, [host]: base } });
+        if (detected[detectedKey] !== base) chrome.storage.local.set({ detected: { ...detected, [detectedKey]: base } });
       });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
@@ -535,5 +573,22 @@
     });
   }
 
-  loadSettings();
+  window.__ccsInstance = {
+    dispose() {
+      disposed = true;
+      teardown();
+    },
+  };
+
+  if (isTop) {
+    // Fallback for SPA navigations in case the service worker message is late or missing.
+    const check = () => setLocation(CCS.locationKey(location.href) || host);
+    window.addEventListener('popstate', check);
+    if (window.navigation) window.navigation.addEventListener('navigatesuccess', check);
+  }
+
+  resolveWhere((key) => {
+    where = key;
+    loadSettings();
+  });
 })();
