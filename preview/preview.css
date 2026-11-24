@@ -36,3 +36,5 @@ iframe { width: 100%; height: 620px; border: 1px solid var(--border); border-rad
   .side { border-right: 0; border-bottom: 1px solid var(--border); }
   .panes { grid-template-columns: 1fr; }
 }
+.credits { padding: 0 16px 16px; margin: 0; font-size: 11px; }
+.credits a { color: inherit; }

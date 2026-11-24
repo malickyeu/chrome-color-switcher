@@ -56,3 +56,9 @@ preview/           stránka náhledu a ukázkový web
 - `npm run test:e2e` načte rozšíření do Chromia (Playwright Chromium z `~/.cache/ms-playwright`, nebo `CHROME_PATH`) a ověří výsledek na testovací stránce. Parametr `-- --screenshots <adresář>` uloží screenshoty. Brandovaný Google Chrome volbu `--load-extension` ignoruje.
 - `npm run icons` znovu vygeneruje ikony
 - `npm run pack` zabalí rozšíření do `dist/color-switcher.zip` (bez testů a vývojových souborů)
+
+## Licence
+
+[MIT](LICENSE)
+
+Made with ❤️ by Filip Majerík & AI · © 2026
